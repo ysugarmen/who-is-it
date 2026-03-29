@@ -7,6 +7,9 @@ app = FastAPI(title="Who Is It?")
 from app.routes.player import router as player_router
 app.include_router(player_router)
 
+from app.routes.challenge import router as challenge_router
+app.include_router(challenge_router)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins.split(","),
