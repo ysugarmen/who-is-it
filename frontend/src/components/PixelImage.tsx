@@ -27,6 +27,16 @@ export default function PixelImage({ src, round, size = 260 }: Props) {
 
     const img = new Image();
     img.crossOrigin = "anonymous";
+    img.onerror = () => {
+      // Fallback: try without crossOrigin (won't pixelate but will show image)
+      const fallback = new Image();
+      fallback.onload = () => {
+        canvas.width = size;
+        canvas.height = size;
+        ctx.drawImage(fallback, 0, 0, size, size);
+      };
+      fallback.src = src;
+    };
     img.onload = () => {
       canvas.width = size;
       canvas.height = size;
@@ -41,7 +51,9 @@ export default function PixelImage({ src, round, size = 260 }: Props) {
       ctx.imageSmoothingEnabled = false;
       ctx.drawImage(canvas, 0, 0, pixelSize, pixelSize, 0, 0, size, size);
     };
-    img.src = src;
+    // Proxy through backend to avoid CORS issues with Wikimedia
+    const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:8000";
+    img.src = `${apiUrl}/api/image-proxy?url=${encodeURIComponent(src)}`;
   }, [src, round, size]);
 
   return (
