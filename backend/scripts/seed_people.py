@@ -13,13 +13,18 @@ from app.db import supabase
 WIKIDATA_ENDPOINT = "https://query.wikidata.org/sparql"
 
 SPARQL_QUERY = """
-SELECT DISTINCT ?person ?personLabel ?image ?occupation ?occupationLabel WHERE {{
+SELECT DISTINCT ?person ?personLabel ?image ?occupationLabel WHERE {{
   ?person wdt:P31 wd:Q5 .
   ?person wdt:P18 ?image .
   ?person wdt:P106 ?occupation .
-  ?occupation wdt:P279* wd:Q2066131 .
   ?person wikibase:sitelinks ?sitelinks .
-  FILTER(?sitelinks > 40)
+  FILTER(?sitelinks > 50)
+  VALUES ?occupation {{
+    wd:Q33999 wd:Q10800557 wd:Q2405480 wd:Q177220
+    wd:Q639669 wd:Q488205 wd:Q36834 wd:Q753110
+    wd:Q2066131 wd:Q82955 wd:Q937857 wd:Q4610556
+    wd:Q11774202 wd:Q3665646 wd:Q2526255
+  }}
   SERVICE wikibase:label {{ bd:serviceParam wikibase:language "en". }}
 }}
 ORDER BY DESC(?sitelinks)
