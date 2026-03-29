@@ -27,16 +27,6 @@ export default function PixelImage({ src, round, size = 260 }: Props) {
 
     const img = new Image();
     img.crossOrigin = "anonymous";
-    img.onerror = () => {
-      // Fallback: try without crossOrigin (won't pixelate but will show image)
-      const fallback = new Image();
-      fallback.onload = () => {
-        canvas.width = size;
-        canvas.height = size;
-        ctx.drawImage(fallback, 0, 0, size, size);
-      };
-      fallback.src = src;
-    };
     img.onload = () => {
       canvas.width = size;
       canvas.height = size;
@@ -47,13 +37,47 @@ export default function PixelImage({ src, round, size = 260 }: Props) {
       }
 
       const pixelSize = PIXEL_SIZES[round] || 8;
-      ctx.drawImage(img, 0, 0, pixelSize, pixelSize);
+
+      // Use offscreen canvas for clean pixelation
+      const offscreen = document.createElement("canvas");
+      offscreen.width = pixelSize;
+      offscreen.height = pixelSize;
+      const offCtx = offscreen.getContext("2d")!;
+
+      // Draw image at tiny size
+      offCtx.drawImage(img, 0, 0, pixelSize, pixelSize);
+
+      // Scale up to full size without smoothing
       ctx.imageSmoothingEnabled = false;
-      ctx.drawImage(canvas, 0, 0, pixelSize, pixelSize, 0, 0, size, size);
+      ctx.drawImage(offscreen, 0, 0, pixelSize, pixelSize, 0, 0, size, size);
     };
-    // Proxy through backend to avoid CORS issues with Wikimedia
-    const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:8000";
-    img.src = `${apiUrl}/api/image-proxy?url=${encodeURIComponent(src)}`;
+    img.onerror = () => {
+      // Fallback: proxy through backend
+      const apiUrl = import.meta.env.VITE_API_URL || "http://localhost:8000";
+      const proxyImg = new Image();
+      proxyImg.crossOrigin = "anonymous";
+      proxyImg.onload = () => {
+        canvas.width = size;
+        canvas.height = size;
+
+        if (round >= 8) {
+          ctx.drawImage(proxyImg, 0, 0, size, size);
+          return;
+        }
+
+        const pixelSize = PIXEL_SIZES[round] || 8;
+        const offscreen = document.createElement("canvas");
+        offscreen.width = pixelSize;
+        offscreen.height = pixelSize;
+        const offCtx = offscreen.getContext("2d")!;
+        offCtx.drawImage(proxyImg, 0, 0, pixelSize, pixelSize);
+        ctx.imageSmoothingEnabled = false;
+        ctx.drawImage(offscreen, 0, 0, pixelSize, pixelSize, 0, 0, size, size);
+      };
+      proxyImg.src = `${apiUrl}/api/image-proxy?url=${encodeURIComponent(src)}`;
+    };
+    // Try direct URL first (upload.wikimedia.org has CORS support)
+    img.src = src;
   }, [src, round, size]);
 
   return (
